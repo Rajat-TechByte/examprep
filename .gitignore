@@ -1,0 +1,16 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Next.js
+.next/
+out/
+
+# Prisma
+.env
+prisma/migrations/
+
+# Logs
+logs
+*.log

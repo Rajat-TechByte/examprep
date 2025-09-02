@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",                          
+    "module": "NodeNext",                          
+    "moduleResolution": "NodeNext",              // <-- better for ESM projects
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"],
+    "resolveJsonModule": true                    // <-- lets you import JSON configs
+  },
+  "include": ["src/**/*.ts", "prisma/**/*.ts"],  // <-- limit to your code & seed files
+  "exclude": ["node_modules"]                    // <-- no need for dist right now
+}
+
