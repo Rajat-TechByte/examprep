@@ -4,6 +4,8 @@ import { prisma } from "../prisma.js";
 import { UserRole } from "@prisma/client";
 import { ParamsDictionary } from "express-serve-static-core";
 import bcrypt from "bcrypt";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authorize } from "../middleware/authorize.js";
 
 const router = express.Router();
 
@@ -12,7 +14,7 @@ interface UserBody {
   email: string;
   name: string;
   role?: UserRole;
-  password: string; 
+  password: string;
 }
 
 interface UserParams extends ParamsDictionary {
@@ -125,5 +127,30 @@ const deleteUser: RequestHandler<UserParams> = async (req, res) => {
   }
 };
 router.delete("/:id", deleteUser);
+
+/* ---------------- PROMOTE user role (ADMIN only) ---------------- */
+const promoteUserRole: RequestHandler<UserParams, any, { role: UserRole }> =
+  async (req, res) => {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    try {
+      const user = await prisma.user.update({
+        where: { id },
+        data: { role },
+      });
+
+      res.json({ message: "Role updated", user: sanitizeUser(user) });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update role" });
+    }
+  };
+
+router.patch(
+  "/:id/role",
+  authMiddleware,
+  authorize("ADMIN"),
+  promoteUserRole
+);
 
 export default router;

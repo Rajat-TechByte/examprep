@@ -4,6 +4,8 @@ import { prisma } from "../prisma.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { ParamsDictionary } from "express-serve-static-core";
 
+import { authorize } from "../middleware/authorize.js";
+
 const router = express.Router();
 
 // Define request body type for creating/updating exams
@@ -26,7 +28,7 @@ const getAllExams: RequestHandler = async (_req, res) => {
     res.status(500).json({ error: "Failed to fetch exams" });
   }
 };
-router.get("/", authMiddleware, getAllExams);
+router.get("/", authMiddleware, authorize("STUDENT", "ADMIN"), getAllExams);
 
 /* ---------------- GET exam by id (public) ---------------- */
 const getExamById: RequestHandler<ExamParams> = async (req, res) => {
@@ -65,7 +67,7 @@ const createExam: RequestHandler<{}, any, ExamBody> = async (req, res) => {
     res.status(500).json({ error: "Failed to create exam" });
   }
 };
-router.post("/", authMiddleware, createExam);
+router.post("/", authMiddleware, authorize("ADMIN"), createExam);
 
 /* ---------------- UPDATE exam (protected) ---------------- */
 const updateExam: RequestHandler<ExamParams, any, ExamBody> = async (req, res) => {
@@ -81,7 +83,7 @@ const updateExam: RequestHandler<ExamParams, any, ExamBody> = async (req, res) =
     res.status(500).json({ error: "Failed to update exam" });
   }
 };
-router.put("/:id", authMiddleware, updateExam);
+router.put("/:id", authMiddleware,authorize("ADMIN"), updateExam);
 
 /* ---------------- DELETE exam (protected) ---------------- */
 const deleteExam: RequestHandler<ExamParams> = async (req, res) => {
@@ -93,6 +95,6 @@ const deleteExam: RequestHandler<ExamParams> = async (req, res) => {
     res.status(500).json({ error: "Failed to delete exam" });
   }
 };
-router.delete("/:id", authMiddleware, deleteExam);
+router.delete("/:id", authMiddleware, authorize("ADMIN"), deleteExam);
 
 export default router;
