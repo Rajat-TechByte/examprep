@@ -1,9 +1,10 @@
 // src/routes/exam.routes.ts
-import express, { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import express, { RequestHandler } from "express";
+import { prisma } from "../prisma.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import { ParamsDictionary } from "express-serve-static-core";
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Define request body type for creating/updating exams
 interface ExamBody {
@@ -12,26 +13,27 @@ interface ExamBody {
 }
 
 // Define params type for routes with ":id"
-interface ExamParams {
+interface ExamParams extends ParamsDictionary {
   id: string;
 }
 
-// GET all exams (basic)
-router.get("/", async (_req: Request, res: Response): Promise<void> => {
+/* ---------------- GET all exams (protected) ---------------- */
+const getAllExams: RequestHandler = async (_req, res) => {
   try {
     const exams = await prisma.exam.findMany();
     res.json(exams);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch exams" });
   }
-});
+};
+router.get("/", authMiddleware, getAllExams);
 
-// GET exam by id (with subjects + topics + questions)
-router.get("/:id", async (req: Request<ExamParams>, res: Response): Promise<void> => {
+/* ---------------- GET exam by id (public) ---------------- */
+const getExamById: RequestHandler<ExamParams> = async (req, res) => {
   const { id } = req.params;
   try {
     const exam = await prisma.exam.findUnique({
-      where: { id }, // ✅ if your schema uses string IDs
+      where: { id },
       include: {
         subjects: {
           include: {
@@ -48,10 +50,11 @@ router.get("/:id", async (req: Request<ExamParams>, res: Response): Promise<void
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch exam" });
   }
-});
+};
+router.get("/:id", getExamById);
 
-// CREATE new exam
-router.post("/", async (req: Request<{}, {}, ExamBody>, res: Response): Promise<void> => {
+/* ---------------- CREATE exam (protected) ---------------- */
+const createExam: RequestHandler<{}, any, ExamBody> = async (req, res) => {
   const { name, syllabus } = req.body;
   try {
     const exam = await prisma.exam.create({
@@ -61,10 +64,11 @@ router.post("/", async (req: Request<{}, {}, ExamBody>, res: Response): Promise<
   } catch (error) {
     res.status(500).json({ error: "Failed to create exam" });
   }
-});
+};
+router.post("/", authMiddleware, createExam);
 
-// UPDATE exam
-router.put("/:id", async (req: Request<ExamParams, {}, ExamBody>, res: Response): Promise<void> => {
+/* ---------------- UPDATE exam (protected) ---------------- */
+const updateExam: RequestHandler<ExamParams, any, ExamBody> = async (req, res) => {
   const { id } = req.params;
   const { name, syllabus } = req.body;
   try {
@@ -76,19 +80,19 @@ router.put("/:id", async (req: Request<ExamParams, {}, ExamBody>, res: Response)
   } catch (error) {
     res.status(500).json({ error: "Failed to update exam" });
   }
-});
+};
+router.put("/:id", authMiddleware, updateExam);
 
-// DELETE exam
-router.delete("/:id", async (req: Request<ExamParams>, res: Response): Promise<void> => {
+/* ---------------- DELETE exam (protected) ---------------- */
+const deleteExam: RequestHandler<ExamParams> = async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.exam.delete({
-      where: { id },
-    });
+    await prisma.exam.delete({ where: { id } });
     res.json({ message: "Exam deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete exam" });
   }
-});
+};
+router.delete("/:id", authMiddleware, deleteExam);
 
 export default router;

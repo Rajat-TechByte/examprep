@@ -1,9 +1,9 @@
 // src/routes/userExam.routes.ts
 import express, { Request, Response } from "express";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { prisma } from "../prisma.js";
+import { Prisma } from "@prisma/client";
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // --- Interfaces for typing ---
 interface UserExamBody {

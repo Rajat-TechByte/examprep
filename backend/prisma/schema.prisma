@@ -1,73 +1,67 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // points to .env file
-}
-
-enum UserRole {
-  ADMIN
-  STUDENT
+  url      = env("DATABASE_URL")
 }
 
 model User {
   id        String     @id @default(uuid())
   email     String     @unique
   name      String?
-  role      UserRole   @default(STUDENT)
-  exams     UserExam[]
   createdAt DateTime   @default(now())
+  role      UserRole   @default(STUDENT)
+  password  String
+  exams     UserExam[]
 }
 
 model Exam {
-  id        String     @id @default(uuid())   // Primary key (UUID)
-  name      String                           // Exam name
-  syllabus  Json?                            // Optional JSON syllabus
-  users     UserExam[]                       // Relation: many users can take exam
-  subjects  Subject[]                        // Relation: exam has many subjects
-  createdAt DateTime   @default(now())       // Timestamp
+  id        String     @id @default(uuid())
+  name      String
+  syllabus  Json?
+  createdAt DateTime   @default(now())
+  subjects  Subject[]
+  users     UserExam[]
 }
-
 
 model UserExam {
   id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
   userId    String
-  exam      Exam     @relation(fields: [examId], references: [id])
   examId    String
-  progress  Json     // progress per exam (JSON: { topic1: 40, topic2: 70 })
+  progress  Json
   createdAt DateTime @default(now())
+  exam      Exam     @relation(fields: [examId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Subject {
   id     String  @id @default(uuid())
   name   String
-  exam   Exam    @relation(fields: [examId], references: [id])
   examId String
+  exam   Exam    @relation(fields: [examId], references: [id])
   topics Topic[]
 }
 
 model Topic {
   id        String     @id @default(uuid())
   name      String
-  subject   Subject    @relation(fields: [subjectId], references: [id])
   subjectId String
   questions Question[]
+  subject   Subject    @relation(fields: [subjectId], references: [id])
 }
 
 model Question {
   id            String @id @default(uuid())
   text          String
-  options       String // JSON array of options
+  options       String
   correctAnswer String
-  topic         Topic  @relation(fields: [topicId], references: [id])
   topicId       String
+  topic         Topic  @relation(fields: [topicId], references: [id])
+}
+
+enum UserRole {
+  ADMIN
+  STUDENT
 }

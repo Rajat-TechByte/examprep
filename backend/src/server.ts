@@ -21,10 +21,12 @@ app.get("/", (_req: Request, res: Response) => {
 import examRoutes from "./routes/exam.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import userExamRoutes from "./routes/userExam.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 
 app.use("/api/exams", examRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/user-exams", userExamRoutes);
+app.use("/auth", authRoutes);
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
