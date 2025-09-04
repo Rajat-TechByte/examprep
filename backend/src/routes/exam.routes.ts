@@ -5,13 +5,14 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 import { ParamsDictionary } from "express-serve-static-core";
 
 import { authorize } from "../middleware/authorize.js";
+import { Prisma } from "@prisma/client";
 
 const router = express.Router();
 
 // Define request body type for creating/updating exams
 interface ExamBody {
   name: string;
-  syllabus: string;
+  syllabus?: Prisma.InputJsonValue; // optional JSON
 }
 
 // Define params type for routes with ":id"
@@ -60,9 +61,9 @@ const createExam: RequestHandler<{}, any, ExamBody> = async (req, res) => {
   const { name, syllabus } = req.body;
   try {
     const exam = await prisma.exam.create({
-      data: { name, syllabus },
+      data: { name, ...(syllabus !== undefined ? { syllabus } : {}) },
     });
-    res.json(exam);
+    res.status(201).json(exam);
   } catch (error) {
     res.status(500).json({ error: "Failed to create exam" });
   }
@@ -76,9 +77,12 @@ const updateExam: RequestHandler<ExamParams, any, ExamBody> = async (req, res) =
   try {
     const exam = await prisma.exam.update({
       where: { id },
-      data: { name, syllabus },
+      data: { 
+        ...(name !== undefined ? { name } : {}),
+        ...(syllabus !== undefined ? { syllabus } : {}),
+      },
     });
-    res.json(exam);
+    res.status(200).json(exam);
   } catch (error) {
     res.status(500).json({ error: "Failed to update exam" });
   }
@@ -90,7 +94,7 @@ const deleteExam: RequestHandler<ExamParams> = async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.exam.delete({ where: { id } });
-    res.json({ message: "Exam deleted successfully" });
+    res.status(200).json({ message: "Exam deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete exam" });
   }

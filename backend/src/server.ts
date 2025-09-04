@@ -22,11 +22,15 @@ import examRoutes from "./routes/exam.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import userExamRoutes from "./routes/userExam.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import questionRoutes from "./routes/question.routes.js";
+import answerRoutes from "./routes/answer.routes.js";
 
-app.use("/api/exams", examRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/user-exams", userExamRoutes);
-app.use("/auth", authRoutes);
+app.use("/api/exams", examRoutes);            // /api/exams, /api/exams/:id
+app.use("/api/users", userRoutes);            // /, /:id, /:id/role
+app.use("/api/user-exams", userExamRoutes);   // /user-exams, /user-exams/:id
+app.use("/auth", authRoutes);                 // /auth/signup, /auth/login
+app.use("/api", questionRoutes);              // /topics/:topicId/questions, /questions/:id
+app.use("/api", answerRoutes);                // /questions/:id/answers, /users/:id/answers, /exams/:id/answers
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
