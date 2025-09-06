@@ -35,3 +35,11 @@ app.use("/api", answerRoutes);                // /questions/:id/answers, /users/
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
 });
+
+// TODO: Centralized error handling
+// - Add a global errorHandler middleware (src/middleware/errorHandler.ts)
+// - Wrap async routes with asyncHandler to avoid try/catch repetition
+// - Map Prisma errors (P2002 unique constraint, P2025 not found, etc.) to user-friendly messages
+// - Use ApiError class or http-errors package for consistent error shapes
+// - This will make the backend look production-ready
+
