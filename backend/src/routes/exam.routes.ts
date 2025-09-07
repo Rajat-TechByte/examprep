@@ -1,104 +1,43 @@
 // src/routes/exam.routes.ts
-import express, { RequestHandler } from "express";
-import { prisma } from "../prisma.js";
+import express from "express";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { ParamsDictionary } from "express-serve-static-core";
-
 import { authorize } from "../middleware/authorize.js";
-import { Prisma } from "@prisma/client";
+import { validate } from "../middleware/validate.js";
+
+import { createExamSchema, updateExamSchema } from "../validators/exam.schema.js";
+import * as examController from "../controllers/exam.controller.js";
 
 const router = express.Router();
 
-// Define request body type for creating/updating exams
-interface ExamBody {
-  name: string;
-  syllabus?: Prisma.InputJsonValue; // optional JSON
-}
-
-// Define params type for routes with ":id"
-interface ExamParams extends ParamsDictionary {
-  id: string;
-}
-
 /* ---------------- GET all exams (protected) ---------------- */
-const getAllExams: RequestHandler = async (_req, res) => {
-  try {
-    const exams = await prisma.exam.findMany();
-    res.json(exams);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch exams" });
-  }
-};
-router.get("/", authMiddleware, authorize("STUDENT", "ADMIN"), getAllExams);
+router.get("/", authMiddleware, authorize("STUDENT", "ADMIN"), examController.getAllExams);
 
 /* ---------------- GET exam by id (public) ---------------- */
-const getExamById: RequestHandler<ExamParams> = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const exam = await prisma.exam.findUnique({
-      where: { id },
-      include: {
-        subjects: {
-          include: {
-            topics: {
-              include: {
-                questions: true,
-              },
-            },
-          },
-        },
-      },
-    });
-    res.json(exam);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch exam" });
-  }
-};
-router.get("/:id", getExamById);
+router.get("/:id", examController.getExamById);
 
 /* ---------------- CREATE exam (protected) ---------------- */
-const createExam: RequestHandler<{}, any, ExamBody> = async (req, res) => {
-  const { name, syllabus } = req.body;
-  try {
-    const exam = await prisma.exam.create({
-      data: { name, ...(syllabus !== undefined ? { syllabus } : {}) },
-    });
-    res.status(201).json(exam);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to create exam" });
-  }
-};
-router.post("/", authMiddleware, authorize("ADMIN"), createExam);
+router.post(
+  "/",
+  authMiddleware,
+  authorize("ADMIN"),
+  validate(createExamSchema, "body"),
+  examController.createExam
+);
 
 /* ---------------- UPDATE exam (protected) ---------------- */
-const updateExam: RequestHandler<ExamParams, any, ExamBody> = async (req, res) => {
-  const { id } = req.params;
-  const { name, syllabus } = req.body;
-  try {
-    const exam = await prisma.exam.update({
-      where: { id },
-      data: { 
-        ...(name !== undefined ? { name } : {}),
-        ...(syllabus !== undefined ? { syllabus } : {}),
-      },
-    });
-    res.status(200).json(exam);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update exam" });
-  }
-};
-router.put("/:id", authMiddleware,authorize("ADMIN"), updateExam);
+router.put(
+  "/:id",
+  authMiddleware,
+  authorize("ADMIN"),
+  validate(updateExamSchema, "body"),
+  examController.updateExam
+);
+// TODO:
+// what if someone wants to update but still wants the data that is present before
+// the put function right now, updates to the totally new syllabus schema when we update it
+// deleting the data of before
 
 /* ---------------- DELETE exam (protected) ---------------- */
-const deleteExam: RequestHandler<ExamParams> = async (req, res) => {
-  const { id } = req.params;
-  try {
-    await prisma.exam.delete({ where: { id } });
-    res.status(200).json({ message: "Exam deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete exam" });
-  }
-};
-router.delete("/:id", authMiddleware, authorize("ADMIN"), deleteExam);
+router.delete("/:id", authMiddleware, authorize("ADMIN"), examController.deleteExam);
 
 export default router;

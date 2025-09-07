@@ -1,104 +1,27 @@
 // src/routes/userExam.routes.ts
-import express, { Request, Response } from "express";
-import { prisma } from "../prisma.js";
-import { Prisma } from "@prisma/client";
+import express from "express";
+import { validate } from "../middleware/validate.js";
+import {
+  registerUserExamSchema,
+  updateProgressSchema,
+} from "../validators/userExam.schema.js";
+import * as userExamController from "../controllers/userExam.controller.js";
 
 const router = express.Router();
 
-// --- Interfaces for typing ---
-interface UserExamBody {
-  userId: string;
-  examId: string;
-  progress?: Prisma.InputJsonValue; // progress can be any JSON object
-}
-
-interface ProgressBody {
-  progress: Prisma.InputJsonValue;
-}
-
-interface UserExamParams {
-  id: string;
-}
-
-// --- Routes ---
-
 // GET all user-exam records
-router.get("/", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const records = await prisma.userExam.findMany({
-      include: {
-        user: true,
-        exam: true,
-      },
-    });
-    res.json(records);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch user exams" });
-  }
-});
+router.get("/", userExamController.getAllUserExams);
 
 // GET specific user-exam record
-router.get("/:id", async (req: Request<UserExamParams>, res: Response): Promise<void> => {
-  const { id } = req.params;
-  try {
-    const record = await prisma.userExam.findUnique({
-      where: { id },
-      include: { user: true, exam: true },
-    });
-    if (!record) {
-      res.status(404).json({ error: "Record not found" });
-      return;
-    }
-    res.json(record);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch record" });
-  }
-});
+router.get("/:id", userExamController.getUserExamById);
 
 // REGISTER a user for an exam
-router.post("/", async (req: Request<{}, {}, UserExamBody>, res: Response): Promise<void> => {
-  const { userId, examId, progress } = req.body;
-  try {
-    const record = await prisma.userExam.create({
-      data: {
-        userId,
-        examId,
-        progress: progress || {}, // default empty object if not provided
-      },
-      include: { user: true, exam: true },
-    });
-    res.json(record);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to register user for exam" });
-  }
-});
+router.post("/", validate(registerUserExamSchema, "body"), userExamController.registerUserExam);
 
 // UPDATE progress
-router.put("/:id", async (req: Request<UserExamParams, {}, ProgressBody>, res: Response): Promise<void> => {
-  const { id } = req.params;
-  const { progress } = req.body;
-  try {
-    const updated = await prisma.userExam.update({
-      where: { id },
-      data: { progress },
-    });
-    res.json(updated);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update progress" });
-  }
-});
+router.put("/:id", validate(updateProgressSchema, "body"), userExamController.updateUserExamProgress);
 
 // DELETE user-exam record (unregister user)
-router.delete("/:id", async (req: Request<UserExamParams>, res: Response): Promise<void> => {
-  const { id } = req.params;
-  try {
-    await prisma.userExam.delete({
-      where: { id },
-    });
-    res.json({ message: "User removed from exam successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete record" });
-  }
-});
+router.delete("/:id", userExamController.deleteUserExam);
 
 export default router;

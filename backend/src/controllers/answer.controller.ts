@@ -1,15 +1,23 @@
+// src/controllers/answer.controller.ts
 import { Request, Response } from "express";
 import { prisma } from "../prisma.js";
+import type { SubmitAnswer } from "../validators/answer.schema.js";
 
 /* ---------------- Submit Answer ---------------- */
 export const submitAnswer = async (req: Request, res: Response) => {
   try {
     const { id: questionId } = req.params;
-    const { userId, optionId } = req.body; // assume userId comes from token in real setup
+    // optionId validated in middleware
+    const validated = res.locals.validated as SubmitAnswer;
+    const { optionId } = validated;
+
+    // user comes from authMiddleware
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
 
     const answer = await prisma.answer.create({
       data: {
-        userId,
+        userId: user.id,
         questionId,
         optionId,
       },
@@ -18,6 +26,7 @@ export const submitAnswer = async (req: Request, res: Response) => {
 
     res.status(201).json(answer);
   } catch (err) {
+    console.error("submitAnswer:", err);
     res.status(500).json({ message: "Error submitting answer", error: err });
   }
 };
@@ -26,6 +35,11 @@ export const submitAnswer = async (req: Request, res: Response) => {
 export const getAnswersByUser = async (req: Request, res: Response) => {
   try {
     const { id: userId } = req.params;
+
+    const user = (req as any).user;
+    if (user.role !== "ADMIN" && user.id !== userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     const answers = await prisma.answer.findMany({
       where: { userId },
@@ -37,6 +51,7 @@ export const getAnswersByUser = async (req: Request, res: Response) => {
 
     res.json(answers);
   } catch (err) {
+    console.error("getAnswersByUser:", err);
     res.status(500).json({ message: "Error fetching answers", error: err });
   }
 };
@@ -65,6 +80,7 @@ export const getAnswersByExam = async (req: Request, res: Response) => {
 
     res.json(answers);
   } catch (err) {
+    console.error("getAnswersByExam:", err);
     res.status(500).json({ message: "Error fetching exam answers", error: err });
   }
 };
