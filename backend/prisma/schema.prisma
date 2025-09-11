@@ -7,35 +7,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/**
+ * NOTE:
+ * - We keep model names in PascalCase for readability.
+ * - @@map ensures underlying DB tables are snake_case (questions, options, etc.)
+ * - Add migrations incrementally.
+ */
+
 model User {
   id        String     @id @default(uuid())
-  email     String     @unique 
+  email     String     @unique
   name      String?
   createdAt DateTime   @default(now())
   role      UserRole   @default(STUDENT)
   password  String
   exams     UserExam[]
   answers   Answer[]
+
+  isAnonymized Boolean? @default(false)
+  deletedAt DateTime?  
+
+  @@map("users")
 }
 
 model Exam {
   id        String     @id @default(uuid())
-  name      String     
+  name      String
   syllabus  Json?
   createdAt DateTime   @default(now())
   subjects  Subject[]
   users     UserExam[]
+
+  @@map("exams")
 }
 
 model UserExam {
-  id        String   @id @default(uuid())
-  userId    String
-  examId    String
-  progress  Json
-  createdAt DateTime @default(now())
-  exam      Exam     @relation(fields: [examId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  id            String        @id @default(uuid()) 
+  userId        String    
+  examId        String    
+  progress      Json?         @default("{}")
+  createdAt     DateTime      @default(now())
+  startedAt     DateTime      @default(now())
+  finishedAt    DateTime?
+  score         Decimal?      @db.Decimal(7,3)
+  attemptNumber Int           @default(1)
+  status        ExamStatus    @default(IN_PROGRESS)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam Exam @relation(fields: [examId], references: [id])
+
+  @@map("user_exams")
+  @@unique([userId, examId, attemptNumber])
+  @@index([userId])
+  @@index([examId])
+  @@index([userId, examId, status])
 }
+
+enum ExamStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+} 
 
 model Subject {
   id     String  @id @default(uuid())
@@ -43,14 +75,24 @@ model Subject {
   examId String
   exam   Exam    @relation(fields: [examId], references: [id])
   topics Topic[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subjects")
 }
 
 model Topic {
   id        String     @id @default(uuid())
   name      String
   subjectId String
-  questions Question[]
   subject   Subject    @relation(fields: [subjectId], references: [id])
+  questions Question[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("topics")
 }
 
 model Question {
@@ -59,7 +101,12 @@ model Question {
   topicId   String
   topic     Topic    @relation(fields: [topicId], references: [id])
   options   Option[]
-  answers   Answer[]
+  createdAt DateTime @default(now())
+
+  questionVersions QuestionVersion[] // back-relation for QuestionVersion.question
+  questionTags     QuestionTag[] // back-relation for QuestionTag.question
+
+  @@map("questions")
 }
 
 model Option {
@@ -68,18 +115,65 @@ model Option {
   isCorrect  Boolean  @default(false)
   questionId String
   question   Question @relation(fields: [questionId], references: [id])
-  answers    Answer[]
+
+  @@map("options")
 }
 
 model Answer {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  id                String           @id @default(uuid())
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionVersionId String?          // nullable if we allow answers without a snapshot
+  questionVersion   QuestionVersion? @relation(fields: [questionVersionId], references: [id], onDelete: Cascade)
+  selectedOptionId  String?          // snapshot: { id, text }
+  isCorrect         Boolean?
+  timeTakenMs       Int?
+  createdAt         DateTime         @default(now())
+
+  @@index([userId])
+  @@index([questionVersionId])
+  @@map("answers")
+}
+
+/**
+ * NEW model: QuestionVersion
+ * - snapshots question text and options (as Json)
+ * - unique per (questionId, versionNumber)
+ */
+
+model QuestionVersion {
+  id            String   @id @default(uuid())
+  questionId    String
+  question      Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  text          String // snapshot of question text (keeps naming consistent with Question.text)
+  options       Json // array of options snapshot: [{id, text, isCorrect?}]
+  explanation   String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  Answer        Answer[]
+
+  @@unique([questionId, versionNumber])
+  @@map("question_versions")
+}
+
+model Tag {
+  id           String        @id @default(uuid())
+  name         String        @unique
+  createdAt    DateTime      @default(now())
+  questionTags QuestionTag[]
+
+  @@map("tags")
+}
+
+model QuestionTag {
   questionId String
-  question   Question @relation(fields: [questionId], references: [id])
-  optionId   String
-  option     Option   @relation(fields: [optionId], references: [id])
-  createdAt  DateTime @default(now())
+  tagId      String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+  @@map("question_tag")
 }
 
 enum UserRole {
