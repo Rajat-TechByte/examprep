@@ -3,7 +3,8 @@ import { z } from "zod";
 
 export const optionSchema = z.object({
   text: z.string(),
-  isCorrect: z.boolean(),
+  // Make isCorrect optional: admins may omit and DB can default it.
+  isCorrect: z.boolean().optional(),
 });
 
 export const createQuestionSchema = z.object({
