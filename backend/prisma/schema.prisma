@@ -24,50 +24,54 @@ model User {
   exams     UserExam[]
   answers   Answer[]
 
-  isAnonymized Boolean? @default(false)
-  deletedAt DateTime?  
+  isAnonymized Boolean?      @default(false)
+  deletedAt    DateTime?
+  ExamAttempt  ExamAttempt[]
+  WeakArea     WeakArea[]
 
   @@map("users")
 }
 
 model Exam {
-  id        String     @id @default(uuid())
-  name      String
-  syllabus  Json?
-  createdAt DateTime   @default(now())
-  subjects  Subject[]
-  users     UserExam[]
+  id          String        @id @default(uuid())
+  name        String
+  syllabus    Json?
+  createdAt   DateTime      @default(now())
+  subjects    Subject[]
+  users       UserExam[]
+  ExamAttempt ExamAttempt[]
+  WeakArea    WeakArea[]
 
   @@map("exams")
 }
 
 model UserExam {
-  id            String        @id @default(uuid()) 
-  userId        String    
-  examId        String    
-  progress      Json?         @default("{}")
-  createdAt     DateTime      @default(now())
-  startedAt     DateTime      @default(now())
+  id            String     @id @default(uuid())
+  userId        String
+  examId        String
+  progress      Json?      @default("{}")
+  createdAt     DateTime   @default(now())
+  startedAt     DateTime   @default(now())
   finishedAt    DateTime?
-  score         Decimal?      @db.Decimal(7,3)
-  attemptNumber Int           @default(1)
-  status        ExamStatus    @default(IN_PROGRESS)
+  score         Decimal?   @db.Decimal(7, 3)
+  attemptNumber Int        @default(1)
+  status        ExamStatus @default(IN_PROGRESS)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   exam Exam @relation(fields: [examId], references: [id])
 
-  @@map("user_exams")
   @@unique([userId, examId, attemptNumber])
   @@index([userId])
   @@index([examId])
   @@index([userId, examId, status])
+  @@map("user_exams")
 }
 
 enum ExamStatus {
   IN_PROGRESS
   COMPLETED
   ABORTED
-} 
+}
 
 model Subject {
   id     String  @id @default(uuid())
@@ -89,8 +93,9 @@ model Topic {
   subject   Subject    @relation(fields: [subjectId], references: [id])
   questions Question[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  WeakArea  WeakArea[]
 
   @@map("topics")
 }
@@ -123,15 +128,19 @@ model Answer {
   id                String           @id @default(uuid())
   userId            String
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionVersionId String?          // nullable if we allow answers without a snapshot
+  attemptId         String? // NEW: link to ExamAttempt (optional for legacy)
+  attempt           ExamAttempt?     @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionVersionId String?
   questionVersion   QuestionVersion? @relation(fields: [questionVersionId], references: [id], onDelete: Cascade)
-  selectedOptionId  String?          // snapshot: { id, text }
+  selectedOptionId  String?
+  selectedSnapshot  Json? // NEW: { selectedText, correctOptionText, correctOptionId, ... }
   isCorrect         Boolean?
   timeTakenMs       Int?
   createdAt         DateTime         @default(now())
 
   @@index([userId])
   @@index([questionVersionId])
+  @@index([attemptId]) // NEW
   @@map("answers")
 }
 
@@ -179,4 +188,48 @@ model QuestionTag {
 enum UserRole {
   ADMIN
   STUDENT
+}
+
+model ExamAttempt {
+  id          String    @id @default(uuid())
+  userId      String
+  examId      String
+  rawSnapshot Json
+  score       Decimal?  @db.Decimal(7, 3)
+  durationSec Int?
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam    Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@index([userId])
+  @@index([examId])
+  @@index([submittedAt])
+  @@map("exam_attempts")
+}
+
+model WeakArea {
+  id          String   @id @default(uuid())
+  userId      String
+  examId      String
+  topicId     String
+  weight      Float    @default(0.0) // 0..1 where higher => weaker
+  meta        Json?
+  lastUpdated DateTime @default(now()) @updatedAt
+  createdAt   DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam  Exam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, examId, topicId])
+  @@index([userId])
+  @@index([examId])
+  @@index([topicId])
+  @@map("weak_areas")
 }
