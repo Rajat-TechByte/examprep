@@ -24,6 +24,7 @@ import userExamRoutes from "./routes/userExam.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import questionRoutes from "./routes/question.routes.js";
 import answerRoutes from "./routes/answer.routes.js";
+import attemptRoutes from "./routes/attempt.routes.js";
 
 app.use("/api/exams", examRoutes);            // /api/exams, /api/exams/:id
 app.use("/api/users", userRoutes);            // /, /:id, /:id/role
@@ -31,6 +32,7 @@ app.use("/api/user-exams", userExamRoutes);   // /user-exams, /user-exams/:id
 app.use("/auth", authRoutes);                 // /auth/signup, /auth/login
 app.use("/api", questionRoutes);              // /topics/:topicId/questions, /questions/:id
 app.use("/api", answerRoutes);                // /questions/:id/answers, /users/:id/answers, /exams/:id/answers
+app.use("/api/attempts", attemptRoutes);      // /start, /submit
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
