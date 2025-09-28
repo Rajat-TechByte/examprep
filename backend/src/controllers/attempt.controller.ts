@@ -1,6 +1,6 @@
 // src/controllers/attempt.controller.ts
 import { Request, Response } from "express";
-import { startAttempt, submitAttempt } from "../services/attempt.service.js";
+import { startAttempt, submitAttempt, getAttempt } from "../services/attempt.service.js";
 import type { StartAttemptInput, SubmitAttemptInput } from "../validators/attempt.schema.js";
 
 /**
@@ -33,10 +33,15 @@ export const postStartAttempt = async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, error: "Missing validated payload" });
   }
 
-  const { userId, examId } = validated;
+  // 👇 Override userId with JWT payload
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+  const { examId } = validated;
 
   try {
-    const attempt = await startAttempt(validated);
+    // <-- pass userId explicitly to service
+    const attempt = await startAttempt({ ...validated, userId });
     console.info("[postStartAttempt] created attempt", { attemptId: attempt.id, userId, examId, ip: req.ip });
     return res.status(201).json({ success: true, attemptId: attempt.id, startedAt: attempt.startedAt });
   } catch (err) {
@@ -59,12 +64,18 @@ export const postSubmitAttempt = async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, error: "Missing validated payload" });
   }
 
+  // 👇 Enforce that the submit comes from the logged-in user
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
   const { attemptId } = validated;
 
   try {
-    const result = await submitAttempt(validated);
+    // <-- pass userId explicitly to service
+    const result = await submitAttempt({ ...validated, userId });
     console.info("[postSubmitAttempt] attempt submitted", {
       attemptId,
+      userId,
       score: result?.score,
       correctCount: result?.correctCount,
       total: result?.total,
@@ -74,12 +85,31 @@ export const postSubmitAttempt = async (req: Request, res: Response) => {
   } catch (err) {
     const status = mapErrorToStatus(err);
     if (status >= 500) {
-      console.error("[postSubmitAttempt] error submitting attempt", { err, attemptId, ip: req.ip });
+      console.error("[postSubmitAttempt] error submitting attempt", { err, attemptId, userId, ip: req.ip });
     } else {
-      console.warn("[postSubmitAttempt] client error", { err: (err as any)?.message, attemptId, ip: req.ip });
+      console.warn("[postSubmitAttempt] client error", { err: (err as any)?.message, attemptId, userId, ip: req.ip });
     }
 
     // 409 (conflict) for double submissions gives a clearer UX signal
     return res.status(status).json({ success: false, error: (err as any)?.message ?? String(err) });
+  }
+};
+
+/* ---------------- Get Attempt ---------------- */
+export const getAttemptById = async (req: Request, res: Response) => {
+  const attemptId = req.params.id;
+  const userId = req.user?.id;
+
+  if (!userId) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+  try {
+    const attempt = await getAttempt({ attemptId, userId });
+    if (!attempt) return res.status(404).json({ success: false, error: "Attempt not found" });
+
+    // Return the attempt object (including rawSnapshot if present)
+    return res.status(200).json({ success: true, attempt });
+  } catch (err) {
+    console.error("[getAttemptById] error", { err, attemptId, userId, ip: req.ip });
+    return res.status(500).json({ success: false, error: (err as any)?.message ?? String(err) });
   }
 };

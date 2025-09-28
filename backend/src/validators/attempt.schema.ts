@@ -2,9 +2,7 @@
 import { z } from "zod";
 
 /**
- * Shape of a single question snapshot inside the quiz payload.
- * Keep fields minimal: questionId (optional), questionVersionId (optional),
- * topicId (optional), text, options: [{ id?, text, isCorrect? }]
+ * Shape of a single option inside a question snapshot.
  */
 export const snapshotOptionSchema = z.object({
   id: z.string().optional(),
@@ -12,6 +10,9 @@ export const snapshotOptionSchema = z.object({
   isCorrect: z.boolean().optional(),
 });
 
+/**
+ * Shape of a single question snapshot inside the quiz payload.
+ */
 export const snapshotQuestionSchema = z.object({
   questionId: z.string().optional(),
   questionVersionId: z.string().optional(),
@@ -25,17 +26,21 @@ export const quizSnapshotSchema = z.object({
   meta: z.any().optional(),
 });
 
+/**
+ * START ATTEMPT
+ * NOTE: userId is intentionally removed — it must come from req.user (JWT).
+ */
 export const startAttemptSchema = z.object({
-  userId: z.string(),
   examId: z.string(),
   quizPayload: quizSnapshotSchema,
 });
 export type StartAttemptInput = z.infer<typeof startAttemptSchema>;
 
+/* ---------------- Submit attempt ---------------- */
+
 /**
- * Submit payload: array of answers referencing snapshot's question items.
- * Each answer can reference questionId or questionVersionId, and either a selectedOptionId (if option ids were used)
- * or selectedText (for direct text matching).
+ * Answer shape for submit flow.
+ * Either questionId or questionVersionId should be provided (service will use questionVersionId primarily).
  */
 export const submitAnswerSchema = z.object({
   questionId: z.string().optional(),
