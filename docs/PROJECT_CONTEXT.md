@@ -18,6 +18,7 @@ AI-powered exam tutor for government exam aspirants — syllabus-aware quizzes, 
 ---
 
 ## 3. MVP feature list
+
 - **Auth**: email/password + JWT; roles = STUDENT / EDITOR / ADMIN ✅  
 - **Exams & syllabus tree** (seeded for UPSC + SSC).  
 - **Quiz generation**: DB-first, fallback AI generation.  

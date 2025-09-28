@@ -10,8 +10,11 @@ export const snapshotOptionSchema = z.object({
   isCorrect: z.boolean().optional(),
 });
 
+
 /**
  * Shape of a single question snapshot inside the quiz payload.
+ * Keep fields minimal: questionId (optional), questionVersionId (optional),
+ * topicId (optional), text, options: [{ id?, text, isCorrect? }]
  */
 export const snapshotQuestionSchema = z.object({
   questionId: z.string().optional(),
@@ -25,6 +28,7 @@ export const quizSnapshotSchema = z.object({
   questions: z.array(snapshotQuestionSchema).min(1),
   meta: z.any().optional(),
 });
+
 
 /**
  * START ATTEMPT
@@ -41,6 +45,7 @@ export type StartAttemptInput = z.infer<typeof startAttemptSchema>;
 /**
  * Answer shape for submit flow.
  * Either questionId or questionVersionId should be provided (service will use questionVersionId primarily).
+ * Either selectedOptionId or selectedText should be provided for matching.
  */
 export const submitAnswerSchema = z.object({
   questionId: z.string().optional(),

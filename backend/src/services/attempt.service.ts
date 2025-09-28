@@ -18,7 +18,7 @@ export async function startAttempt(input: StartAttemptInput & { userId: string }
     data: {
       userId,
       examId,
-      rawSnapshot: quizPayload ?? null,
+      rawSnapshot: quizPayload ?? null, 
       startedAt: new Date(),
     },
   });
@@ -75,7 +75,8 @@ export async function submitAttempt(input: SubmitAttemptInput & { userId: string
   for (const ans of answers) {
     let qSnapshot: any | null = null;
     if (ans.questionId && byQId.has(ans.questionId)) qSnapshot = byQId.get(ans.questionId);
-    else if (ans.questionVersionId && byVId.has(ans.questionVersionId)) qSnapshot = byVId.get(ans.questionVersionId);
+    else if (ans.questionVersionId && byVId.has(ans.questionVersionId))
+      qSnapshot = byVId.get(ans.questionVersionId);
     else qSnapshot = null;
 
     let isCorrect = false;
@@ -267,7 +268,6 @@ export async function submitAttempt(input: SubmitAttemptInput & { userId: string
     });
   }
 }
-
 
 export async function getAttempt({ attemptId, userId }: { attemptId: string; userId: string }) {
   // adjust field names if your prisma model differs

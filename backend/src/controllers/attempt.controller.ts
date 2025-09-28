@@ -1,6 +1,8 @@
 // src/controllers/attempt.controller.ts
 import { Request, Response } from "express";
+
 import { startAttempt, submitAttempt, getAttempt } from "../services/attempt.service.js";
+
 import type { StartAttemptInput, SubmitAttemptInput } from "../validators/attempt.schema.js";
 
 /**
@@ -42,6 +44,7 @@ export const postStartAttempt = async (req: Request, res: Response) => {
   try {
     // <-- pass userId explicitly to service
     const attempt = await startAttempt({ ...validated, userId });
+
     console.info("[postStartAttempt] created attempt", { attemptId: attempt.id, userId, examId, ip: req.ip });
     return res.status(201).json({ success: true, attemptId: attempt.id, startedAt: attempt.startedAt });
   } catch (err) {
@@ -63,7 +66,7 @@ export const postSubmitAttempt = async (req: Request, res: Response) => {
     console.warn("[postSubmitAttempt] missing validated payload", { path: req.path, ip: req.ip });
     return res.status(400).json({ success: false, error: "Missing validated payload" });
   }
-
+  
   // 👇 Enforce that the submit comes from the logged-in user
   const userId = req.user?.id;
   if (!userId) return res.status(401).json({ success: false, error: "Unauthorized" });
@@ -94,6 +97,7 @@ export const postSubmitAttempt = async (req: Request, res: Response) => {
     return res.status(status).json({ success: false, error: (err as any)?.message ?? String(err) });
   }
 };
+
 
 /* ---------------- Get Attempt ---------------- */
 export const getAttemptById = async (req: Request, res: Response) => {

@@ -1,6 +1,6 @@
 # PROJECT_DEVELOPMENT_SUMMARY.md — AI Exam Tutor (Progress Log)
 
-**Last updated:** 2025-09-23  
+**Last updated:** 2025-09-28  
 
 ---
 
@@ -42,7 +42,6 @@ AI-powered, exam-specific tutor — syllabus-aware quizzes, persistent memory, a
 - WeakArea weight updates use EMA; composite unique `(userId, examId, topicId)`.  
 - Migrations are additive/non-destructive (legacy `answers` keep nullable `attemptId`).  
 - Auth always enforced via JWT; no endpoint trusts body `userId`.  
-
 ---
 
 ## 5. Immediate next priority
