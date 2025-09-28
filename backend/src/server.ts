@@ -1,6 +1,10 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { authMiddleware } from "./middleware/authMiddleware.js";
+
+console.log("BOOT: JWT_SECRET =", JSON.stringify(process.env.JWT_SECRET));
+
 
 // Load environment variables
 dotenv.config();
@@ -32,7 +36,9 @@ app.use("/api/user-exams", userExamRoutes);   // /user-exams, /user-exams/:id
 app.use("/auth", authRoutes);                 // /auth/signup, /auth/login
 app.use("/api", questionRoutes);              // /topics/:topicId/questions, /questions/:id
 app.use("/api", answerRoutes);                // /questions/:id/answers, /users/:id/answers, /exams/:id/answers
-app.use("/api/attempts", attemptRoutes);      // /start, /submit
+
+app.use("/api/attempts", authMiddleware, attemptRoutes);      // /start, /submit
+
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);

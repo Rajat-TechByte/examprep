@@ -1,6 +1,8 @@
 // src/routes/attempt.routes.ts
 import { Router } from "express";
-import { postStartAttempt, postSubmitAttempt } from "../controllers/attempt.controller.js";
+
+import { postStartAttempt, postSubmitAttempt, getAttemptById } from "../controllers/attempt.controller.js";
+
 import { validate } from "../middleware/validate.js";
 import { startAttemptSchema, submitAttemptSchema } from "../validators/attempt.schema.js";
 
@@ -11,5 +13,8 @@ router.post("/start", validate(startAttemptSchema), postStartAttempt);
 
 // submit attempt (grades & updates weak areas)
 router.post("/submit", validate(submitAttemptSchema), postSubmitAttempt);
+
+// get attempt by id (protected)
+router.get("/:id", getAttemptById);
 
 export default router;

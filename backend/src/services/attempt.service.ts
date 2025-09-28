@@ -5,15 +5,20 @@ import type { StartAttemptInput, SubmitAttemptInput } from "../validators/attemp
 /**
  * Start an attempt: create ExamAttempt row and store rawSnapshot (quizPayload).
  * Returns the created attempt.
+ *
+ * Note: controllers now inject `userId` from req.user and pass it here.
  */
-export async function startAttempt(input: StartAttemptInput) {
+export async function startAttempt(input: StartAttemptInput & { userId: string }) {
   const { userId, examId, quizPayload } = input;
+
+  if (!userId) throw new Error("Missing userId");
+  if (!examId) throw new Error("Missing examId");
 
   const attempt = await prisma.examAttempt.create({
     data: {
       userId,
       examId,
-      rawSnapshot: quizPayload,
+      rawSnapshot: quizPayload ?? null, 
       startedAt: new Date(),
     },
   });
@@ -24,10 +29,14 @@ export async function startAttempt(input: StartAttemptInput) {
 /**
  * Submit attempt: grade using the stored rawSnapshot.
  * Transactional: writes answer rows, updates attempt, upserts weak areas.
+ *
+ * Note: controllers inject `userId` (authenticated user). The attempt row is the
+ * source of truth for ownership; we verify the caller matches the attempt owner.
  */
-
-export async function submitAttempt(input: SubmitAttemptInput) {
-  const { attemptId, answers, durationSec } = input;
+export async function submitAttempt(input: SubmitAttemptInput & { userId: string }) {
+  const { attemptId, answers, durationSec, userId: callerUserId } = input as SubmitAttemptInput & {
+    userId: string;
+  };
 
   if (!attemptId) throw new Error("Missing attemptId");
   if (!Array.isArray(answers) || answers.length === 0) throw new Error("No answers provided");
@@ -43,6 +52,12 @@ export async function submitAttempt(input: SubmitAttemptInput) {
   // derive userId from the saved attempt (server is source of truth)
   const userIdFromAttempt = (attempt as any).userId ?? (attempt as any).user?.id ?? null;
   if (!userIdFromAttempt) throw new Error("Attempt row missing userId — ensure startAttempt saved userId");
+
+  // Enforce caller is the same as attempt owner
+  if (String(callerUserId) !== String(userIdFromAttempt)) {
+    // Keep message generic but clear for logs; controller maps to 401/403 as appropriate
+    throw new Error("Unauthorized: attempt does not belong to authenticated user");
+  }
 
   // Build lookup maps for quick matching
   const byQId = new Map<string, any>();
@@ -254,3 +269,17 @@ export async function submitAttempt(input: SubmitAttemptInput) {
   }
 }
 
+export async function getAttempt({ attemptId, userId }: { attemptId: string; userId: string }) {
+  // adjust field names if your prisma model differs
+  return prisma.examAttempt.findFirst({
+    where: { id: attemptId, userId }, // enforce owner-only access
+    select: {
+      id: true,
+      userId: true,
+      examId: true,
+      startedAt: true,
+      rawSnapshot: true, // json field - returns object if stored as JSON
+      // include other metadata your client needs
+    },
+  });
+}

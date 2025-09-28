@@ -8,10 +8,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (simplif
 ## [Unreleased]
 - WeakArea aggregation refinements (tuning α, richer `meta`)
 - Adaptive sampling logic for quiz generation
-- Auth scaffolding (JWT middleware)
 - AI question generation + RAG integration
 - Dashboard endpoints
 - CI/CD pipeline
+
+---
+
+## [0.4.0] — 2025-09-28
+### Added
+- Completed **Auth Scaffolding**:
+  - Implemented signup/login endpoints with bcrypt + JWT.
+  - Added `authMiddleware` for route protection and `authorize()` for role-based access.
+  - Updated attempt controllers/services to use `req.user.id` instead of client-passed `userId`.
+  - Secured `/api/attempts/*` and prepared for `/api/dashboard/*`.
+  - Added seed script for admin & student accounts.
+  - Extended smoke tests to include login → start attempt → submit attempt flows.
+
+### Changed
+- Documentation updated (`PROJECT_CONTEXT.md`, `PROJECT_DEVELOPMENT_SUMMARY.md`) to mark Auth scaffolding as complete.
 
 ---
 

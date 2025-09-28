@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md — AI Exam Tutor (Canonical Spec)
 
-**Last updated:** 2025-09-23  
+**Last updated:** 2025-09-28  
 
 ---
 
@@ -18,13 +18,14 @@ AI-powered exam tutor for government exam aspirants — syllabus-aware quizzes, 
 ---
 
 ## 3. MVP feature list
-- **Auth**: email/password + JWT; roles = STUDENT / EDITOR / ADMIN.  
+
+- **Auth**: email/password + JWT; roles = STUDENT / EDITOR / ADMIN ✅  
 - **Exams & syllabus tree** (seeded for UPSC + SSC).  
 - **Quiz generation**: DB-first, fallback AI generation.  
-- **Attempt lifecycle**: start → submit; snapshot pinned to versions.  
+- **Attempt lifecycle**: start → submit; snapshot pinned to versions. ✅  
 - **Scoring & WeakArea aggregation** per user-topic.  
 - **Dashboard endpoints** for progress & weak topics.  
-- **Question Versioning**: immutable snapshots ensure grading consistency.  
+- **Question Versioning**: immutable snapshots ensure grading consistency. ✅  
 
 ---
 
@@ -54,7 +55,7 @@ AI-powered exam tutor for government exam aspirants — syllabus-aware quizzes, 
 ## 5. Zod DTOs (schemas)
 - **Answer**: `submitAnswerSchema` (uses `questionVersionId` + `attemptId`).  
 - **Attempt**: `startAttemptSchema`, `submitAttemptSchema` ✅  
-- **Auth**: `signupSchema`, `loginSchema`  
+- **Auth**: `signupSchema`, `loginSchema` ✅  
 - **Exam**: `createExamSchema`, `updateExamSchema`  
 - **Question**: `createQuestionSchema`  
 - **Syllabus**: `syllabusSchema`  
@@ -70,18 +71,22 @@ AI-powered exam tutor for government exam aspirants — syllabus-aware quizzes, 
 - **Versioning rule**: each question create/update produces a new immutable `QuestionVersion` snapshot.  
 - **WeakArea update**: uses EMA algorithm; composite unique key `(userId, examId, topicId)` guarantees one row per triple.  
 - **Migrations**: additive; existing answers keep `attemptId?` nullable for backward compatibility.  
+- **Auth invariants**:  
+  - All protected routes require `Authorization: Bearer <token>`.  
+  - `req.user.id` is always source of truth; `userId` is never trusted from client input.  
+  - Roles enforced via `authorize()` middleware.  
 
 ---
 
 ## 7. API surface (MVP)
 Auth:  
-- `POST /auth/register`  
-- `POST /auth/login`  
+- `POST /auth/signup` ✅  
+- `POST /auth/login` ✅  
 
 Quiz & Attempts:  
 - `POST /quizzes/generate`  
-- `POST /attempts/start`  
-- `POST /attempts/submit`  
+- `POST /attempts/start` ✅  
+- `POST /attempts/submit` ✅  
 - `GET /users/:id/progress?exam=<slug>`  
 
 Admin:  
@@ -96,10 +101,10 @@ Admin:
 - Migrate (dev): `npx prisma migrate dev --name <name>`  
 - Start dev server: `pnpm dev`  
 - Tests: `pnpm test`  
-- Seed: `node prisma/seed.js` (or `pnpm seed`)  
+- Seed: `node prisma/seed.js` or `pnpm ts-node scripts/seedAuth.ts` ✅  
 - Smoke tests:  
-  - `pnpm ts-node scripts/smokeQuestion.ts` (question versioning)  
-  - `pnpm ts-node scripts/smokeAttempt.ts` (attempt lifecycle) ✅  
+  - `pnpm ts-node scripts/smokeQuestion.ts` (question versioning) ✅  
+  - `pnpm ts-node scripts/smokeAttempt.ts` (auth + attempt lifecycle) ✅  
 
 ---
 
@@ -114,7 +119,7 @@ Admin:
 
 ## 10. File locations
 - Prisma schema: `prisma/schema.prisma`  
-- Seeds: `prisma/seed.ts` or `scripts/seed.js`  
+- Seeds: `prisma/seed.ts` or `scripts/seedAuth.ts`  
 - DTOs: `src/schemas/*.ts`  
 - Services: `src/services/*`  
 - Controllers: `src/controllers/*`  
@@ -128,4 +133,4 @@ Admin:
 - Keep this file updated on **design changes** (schema, API, invariants).  
 - Maintainer: <Your name / GitHub handle>  
 - Demo URL: <url>  
-- Test account: <email> / <pw> (optional)  
+- Test account: student@example.com / StudentPass123! (seeded) ✅  
