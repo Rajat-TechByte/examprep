@@ -1,12 +1,11 @@
 // src/services/attempt.service.ts
 import { prisma } from "../prisma.js";
 import type { StartAttemptInput, SubmitAttemptInput } from "../validators/attempt.schema.js";
+import { updateWeakAreasFromStats } from "./weakArea.service.js";
 
 /**
  * Start an attempt: create ExamAttempt row and store rawSnapshot (quizPayload).
  * Returns the created attempt.
- *
- * Note: controllers now inject `userId` from req.user and pass it here.
  */
 export async function startAttempt(input: StartAttemptInput & { userId: string }) {
   const { userId, examId, quizPayload } = input;
@@ -18,7 +17,7 @@ export async function startAttempt(input: StartAttemptInput & { userId: string }
     data: {
       userId,
       examId,
-      rawSnapshot: quizPayload ?? null, 
+      rawSnapshot: quizPayload ?? null,
       startedAt: new Date(),
     },
   });
@@ -29,9 +28,6 @@ export async function startAttempt(input: StartAttemptInput & { userId: string }
 /**
  * Submit attempt: grade using the stored rawSnapshot.
  * Transactional: writes answer rows, updates attempt, upserts weak areas.
- *
- * Note: controllers inject `userId` (authenticated user). The attempt row is the
- * source of truth for ownership; we verify the caller matches the attempt owner.
  */
 export async function submitAttempt(input: SubmitAttemptInput & { userId: string }) {
   const { attemptId, answers, durationSec, userId: callerUserId } = input as SubmitAttemptInput & {
@@ -55,7 +51,6 @@ export async function submitAttempt(input: SubmitAttemptInput & { userId: string
 
   // Enforce caller is the same as attempt owner
   if (String(callerUserId) !== String(userIdFromAttempt)) {
-    // Keep message generic but clear for logs; controller maps to 401/403 as appropriate
     throw new Error("Unauthorized: attempt does not belong to authenticated user");
   }
 
@@ -160,46 +155,6 @@ export async function submitAttempt(input: SubmitAttemptInput & { userId: string
   const total = answers.length;
   const score = total ? (correctCount / total) * 100 : 0;
 
-  // Helper to update weak areas inside a transaction (tx param must be a Prisma transaction client)
-  const applyWeakAreas = async (txClient: any) => {
-    const alpha = 0.4;
-    for (const [topicId, stats] of Object.entries(topicStats)) {
-      const accuracy = stats.total ? stats.correct / stats.total : 0;
-      const errorRate = 1 - accuracy;
-
-      const existing = await txClient.weakArea.findFirst({
-        where: {
-          userId: userIdFromAttempt,
-          examId: attempt.examId,
-          topicId,
-        },
-      });
-
-      if (!existing) {
-        await txClient.weakArea.create({
-          data: {
-            userId: userIdFromAttempt,
-            examId: attempt.examId,
-            topicId,
-            weight: errorRate,
-            meta: { lastSamples: stats },
-          },
-        });
-      } else {
-        const existingWeight =
-          typeof existing.weight === "number" ? existing.weight : Number(existing.weight ?? 0);
-        const newWeight = existingWeight * (1 - alpha) + errorRate * alpha;
-        const existingMeta =
-          typeof existing.meta === "object" && existing.meta !== null ? (existing.meta as Record<string, any>) : {};
-        const newMeta = { ...existingMeta, lastSamples: stats };
-        await txClient.weakArea.update({
-          where: { id: existing.id },
-          data: { weight: newWeight, meta: newMeta },
-        });
-      }
-    }
-  };
-
   // --- FAST PATH: try createMany inside one transaction ---
   try {
     return await prisma.$transaction(async (tx) => {
@@ -227,13 +182,12 @@ export async function submitAttempt(input: SubmitAttemptInput & { userId: string
 
       const updatedAttempt = await tx.examAttempt.findUnique({ where: { id: attemptId } });
 
-      // Weak area updates inside same tx
-      await applyWeakAreas(tx);
+      // WEAK AREA UPDATES (moved to weakArea.service)
+      await updateWeakAreasFromStats(tx, userIdFromAttempt, attempt.examId, topicStats);
 
       return { attempt: updatedAttempt, score, correctCount, total };
     });
   } catch (createManyErr) {
-    // Log original error to inspect root cause (JSON/constraint/etc)
     console.error("createMany path failed, retrying per-row. original error:", createManyErr);
 
     // --- FALLBACK: new transaction, per-row create ---
@@ -252,7 +206,6 @@ export async function submitAttempt(input: SubmitAttemptInput & { userId: string
         });
       }
 
-      // again guard against concurrent submit
       const updateRes = await tx2.examAttempt.updateMany({
         where: { id: attemptId, submittedAt: null },
         data: { submittedAt: new Date(), durationSec: durationSec ?? null, score },
@@ -261,8 +214,8 @@ export async function submitAttempt(input: SubmitAttemptInput & { userId: string
 
       const updatedAttempt = await tx2.examAttempt.findUnique({ where: { id: attemptId } });
 
-      // Weak area updates in the fallback tx
-      await applyWeakAreas(tx2);
+      // WEAK AREA UPDATES (fallback)
+      await updateWeakAreasFromStats(tx2, userIdFromAttempt, attempt.examId, topicStats);
 
       return { attempt: updatedAttempt, score, correctCount, total };
     });
@@ -270,16 +223,14 @@ export async function submitAttempt(input: SubmitAttemptInput & { userId: string
 }
 
 export async function getAttempt({ attemptId, userId }: { attemptId: string; userId: string }) {
-  // adjust field names if your prisma model differs
   return prisma.examAttempt.findFirst({
-    where: { id: attemptId, userId }, // enforce owner-only access
+    where: { id: attemptId, userId },
     select: {
       id: true,
       userId: true,
       examId: true,
       startedAt: true,
-      rawSnapshot: true, // json field - returns object if stored as JSON
-      // include other metadata your client needs
+      rawSnapshot: true,
     },
   });
 }
